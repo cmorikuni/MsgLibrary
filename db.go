@@ -48,6 +48,9 @@ package main
 // QUERY SELECT: SELECT * FROM messages WHERE message LIKE '%test msg%'
 
 import (
+	"fmt"
+	"strings"
+	"strconv"
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -71,10 +74,6 @@ func open() {
 	checkErr(err)
 }
 
-func close() {
-	db.Close()
-}
-
 func categoryExists(cat string, mc []*MsgCategory) int {
 	for ind, item := range mc {
 		if item.Category == cat {
@@ -87,6 +86,7 @@ func categoryExists(cat string, mc []*MsgCategory) int {
 func queryAll() []*MsgCategory {
 	rows, err := db.Query("SELECT * FROM messages")
 	checkErr(err)
+	defer rows.Close()
 
 	return queryPrint(rows)
 }
@@ -94,6 +94,7 @@ func queryAll() []*MsgCategory {
 func querySearch(str string) []*MsgCategory {
 	rows, err := db.Query("SELECT * FROM messages WHERE message LIKE '%" + str + "%'")
 	checkErr(err)
+	defer rows.Close()
 
 	return queryPrint(rows)
 }
@@ -101,35 +102,18 @@ func querySearch(str string) []*MsgCategory {
 func queryType(str string) []*MsgCategory {
 	rows, err := db.Query("SELECT * FROM messages WHERE category == '" + str + "'")
 	checkErr(err)
+	defer rows.Close()
 
 	return queryPrint(rows)
 }
 
-	// Route{
-	// 	"Message",
-	// 	"GET",
-	// 	"/message/{id}",
-	// 	Message,
-	// },
-	// Route{
-	// 	"Message",
-	// 	"GET",
-	// 	"/message/{id}/{vars}",
-	// 	Message,
-	// },
-
-func queryMsg(id int, vars []string) []*MsgCategory {
-	rows, err := db.Query("SELECT * FROM messages WHERE oid == " + id)
+func queryMsg(id string, vars []string) string {
+	rows, err := db.Query("SELECT oid, message, called FROM messages WHERE oid == " + id)
 	checkErr(err)
+	defer rows.Close()
 
 	// If vars replace %% token
-	if len(vars) > 0 {
-
-	} else {
-
-	}
-
-	return queryPrint(rows)
+	return msgPrint(rows, vars)
 }
 
 func queryPrint(rows *sql.Rows) []*MsgCategory {
@@ -157,8 +141,42 @@ func queryPrint(rows *sql.Rows) []*MsgCategory {
 	return mcs
 }
 
+func msgPrint(rows *sql.Rows, vars []string) string {
+	var oid int
+	var message string
+	var called int
+	for rows.Next() {
+		err := rows.Scan(&oid, &message, &called)
+		checkErr(err)
+
+		cnt := strings.Count(message, "%%")
+		fmt.Println(cnt)
+		
+		if len(vars) != cnt {
+			return "ERROR: variables (" + strconv.Itoa(len(vars)) + ") and token counts (" + strconv.Itoa(cnt) + ") do not match."
+		}
+		
+		for _, v := range vars {
+			message = strings.Replace(message, "%%", v, 1)
+		}
+	}
+
+	called++
+	updateCalled(oid, called)
+	return message
+}
+
+func updateCalled(oid int, called int) {
+    stmt, err := db.Prepare("UPDATE messages SET called=? WHERE oid=?")
+    checkErr(err)
+
+    _, err = stmt.Exec(called, oid)
+    checkErr(err)
+}
+
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
+

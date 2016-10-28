@@ -1,10 +1,11 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"strings"
 	"net/http"
-
+	"encoding/json"
 	"github.com/gorilla/mux"
 )
 
@@ -19,32 +20,41 @@ func Index(w http.ResponseWriter, r *http.Request) {
 
 func All(w http.ResponseWriter, r *http.Request) {
 	open()
-	defer close()
-
-	// mc := queryAll()
-	fmt.Fprintln(w, "JSON output of full db")
+	mc := queryAll()
+	fmt.Fprintln(w, toJson(mc))
 }
 
 func AllSearch(w http.ResponseWriter, r *http.Request) {
 	varsIn := mux.Vars(r)
 	searchStr := varsIn["searchStr"]
-	fmt.Fprintln(w, "JSON output of matching db entries starting with: ", searchStr)
+	mc := querySearch(searchStr)
+	fmt.Fprintln(w, toJson(mc))
 }
 
 func AllType(w http.ResponseWriter, r *http.Request) {
 	varsIn := mux.Vars(r)
 	typeStr := varsIn["typeStr"]
-	fmt.Fprintln(w, "JSON output of matching db entries with type: ", typeStr)
+	mc := queryType(typeStr)
+	fmt.Fprintln(w, toJson(mc))
 }
 
 func Message(w http.ResponseWriter, r *http.Request) {
 	varsIn := mux.Vars(r)
 	id := varsIn["id"]
 	vars := varsIn["vars"]
-	fmt.Fprintln(w, "MessageId: ", id)
-	fmt.Fprintln(w, "Vars Length: ", len(vars))
+	
+	var splitVars []string
 	if len(vars) > 0 {
-		splitVars := strings.Split(strings.Replace(vars, " ", "", -1), ",")
-		fmt.Fprintln(w, "Return message with variables substituted ", splitVars)
+		splitVars = strings.Split(strings.Replace(vars, " ", "", -1), ",")
 	}
+	fmt.Fprintln(w, queryMsg(id, splitVars))
+}
+
+func toJson(mc []*MsgCategory) string {
+   bytes, err := json.Marshal(mc)
+   if err != nil {
+                   fmt.Println(err.Error())
+                   os.Exit(1)
+   }
+   return string(bytes)
 }
