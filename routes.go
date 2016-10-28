@@ -49,15 +49,21 @@ var routes = Routes{
 		AllSearch,
 	},
 	Route{
-		"Message",
+		"AllType",
 		"GET",
-		"/message",
+		"/all/{typeStr}",
+		AllType,
+	},
+	Route{
+		"Message",
+		"POST",
+		"/message/{id}",
 		Message,
 	},
 	Route{
 		"Message",
-		"GET",
-		"/message/{vars}",
+		"POST",
+		"/message/{id}/{vars}",
 		Message,
 	},
 }

@@ -88,17 +88,51 @@ func queryAll() []*MsgCategory {
 	rows, err := db.Query("SELECT * FROM messages")
 	checkErr(err)
 
-	return query(rows)
+	return queryPrint(rows)
 }
 
 func querySearch(str string) []*MsgCategory {
 	rows, err := db.Query("SELECT * FROM messages WHERE message LIKE '%" + str + "%'")
 	checkErr(err)
 
-	return query(rows)
+	return queryPrint(rows)
 }
 
-func query(rows *sql.Rows) []*MsgCategory {
+func queryType(str string) []*MsgCategory {
+	rows, err := db.Query("SELECT * FROM messages WHERE category == '" + str + "'")
+	checkErr(err)
+
+	return queryPrint(rows)
+}
+
+	// Route{
+	// 	"Message",
+	// 	"GET",
+	// 	"/message/{id}",
+	// 	Message,
+	// },
+	// Route{
+	// 	"Message",
+	// 	"GET",
+	// 	"/message/{id}/{vars}",
+	// 	Message,
+	// },
+
+func queryMsg(id int, vars []string) []*MsgCategory {
+	rows, err := db.Query("SELECT * FROM messages WHERE oid == " + id)
+	checkErr(err)
+
+	// If vars replace %% token
+	if len(vars) > 0 {
+
+	} else {
+
+	}
+
+	return queryPrint(rows)
+}
+
+func queryPrint(rows *sql.Rows) []*MsgCategory {
 	mcs := []*MsgCategory{}
 	for rows.Next() {
 		var oid int
