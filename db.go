@@ -1,54 +1,6 @@
 package main
 
-// import (
-//            "encoding/json"
-//            "fmt"
-//            "io/ioutil"
-//            "os"
-//            "bytes"
-// )
-
-// type MsgCategory []struct {
-//            Category string   `json:"category"`
-//            Messages []string `json:"messages"`
-// }
-
-// func (mc MsgCategory) toString() string {
-//            bytes, err := json.Marshal(mc)
-//            if err != nil {
-//                            fmt.Println(err.Error())
-//                            os.Exit(1)
-//            }
-//            return string(bytes)
-// }
-
-// func getMessages() MsgCategory {
-//            raw, err := ioutil.ReadFile("./msgs.json")
-//            if err != nil {
-//                            fmt.Println(err.Error())
-//                            os.Exit(1)
-//            }
-//            dec := json.NewDecoder(bytes.NewReader(raw))
-//            var mc MsgCategory
-//            dec.Decode(&mc)
-//            return mc
-// }
-
-// [
-//   {
-//      category: string,
-//      messages: [
-//          string
-//      ]
-//   }
-//]
-
-// CREATE TABLE messages(oid INTEGER PRIMARY KEY, category TEXT, message TEXT, called INTEGER)
-// INSERT INTO messages(category, message, called) VALUES ('random', 'Invalid %% message format needs to be %%.', 0)
-// QUERY SELECT: SELECT * FROM messages WHERE message LIKE '%test msg%'
-
 import (
-	"fmt"
 	"strings"
 	"strconv"
 	"database/sql"
@@ -74,17 +26,52 @@ func open() {
 	checkErr(err)
 }
 
-func categoryExists(cat string, mc []*MsgCategory) int {
-	for ind, item := range mc {
-		if item.Category == cat {
-			return ind
-		}
-	}
-	return -1
+func insert(typeStr string, msg string) []*MsgCategory {
+	stmt, err := db.Prepare("INSERT INTO messages(category, message, called) VALUES (?,?,?)")
+	checkErr(err)
+
+	res, err := stmt.Exec(strings.ToUpper(typeStr), msg, 0)
+	checkErr(err)
+
+	id, err := res.LastInsertId()
+	checkErr(err)
+
+	return queryId(strconv.Itoa(int(id)))
+}
+
+func delete(id string) string {
+	stmt, err := db.Prepare("DELETE FROM messages WHERE oid=?")
+	checkErr(err)
+
+	res, err := stmt.Exec(id)
+	checkErr(err)
+
+	affect, err := res.RowsAffected()
+	checkErr(err)
+
+	return strconv.Itoa(int(affect)) + " rows deleted."
+}
+
+func update(id string, field string, value string) []*MsgCategory {
+	stmt, err := db.Prepare("UPDATE messages SET " + field + "=? WHERE oid=?")
+	checkErr(err)
+
+	_, err := stmt.Exec(value, id)
+	checkErr(err)
+
+	return queryId(id)
 }
 
 func queryAll() []*MsgCategory {
 	rows, err := db.Query("SELECT * FROM messages")
+	checkErr(err)
+	defer rows.Close()
+
+	return queryPrint(rows)
+}
+
+func queryId(id string) []*MsgCategory {
+	rows, err := db.Query("SELECT * FROM messages WHERE oid == " + id)
 	checkErr(err)
 	defer rows.Close()
 
@@ -100,7 +87,7 @@ func querySearch(str string) []*MsgCategory {
 }
 
 func queryType(str string) []*MsgCategory {
-	rows, err := db.Query("SELECT * FROM messages WHERE category == '" + str + "'")
+	rows, err := db.Query("SELECT * FROM messages WHERE category == '" + strings.ToUpper(str) + "'")
 	checkErr(err)
 	defer rows.Close()
 
@@ -150,8 +137,6 @@ func msgPrint(rows *sql.Rows, vars []string) string {
 		checkErr(err)
 
 		cnt := strings.Count(message, "%%")
-		fmt.Println(cnt)
-		
 		if len(vars) != cnt {
 			return "ERROR: variables (" + strconv.Itoa(len(vars)) + ") and token counts (" + strconv.Itoa(cnt) + ") do not match."
 		}
@@ -164,6 +149,15 @@ func msgPrint(rows *sql.Rows, vars []string) string {
 	called++
 	updateCalled(oid, called)
 	return message
+}
+
+func categoryExists(cat string, mc []*MsgCategory) int {
+	for ind, item := range mc {
+		if item.Category == cat {
+			return ind
+		}
+	}
+	return -1
 }
 
 func updateCalled(oid int, called int) {
@@ -179,4 +173,3 @@ func checkErr(err error) {
 		panic(err)
 	}
 }
-
